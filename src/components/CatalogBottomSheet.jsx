@@ -20,18 +20,22 @@ const CatalogBottomSheet = ({ selectedDoorId, selectedHandleId, onSelectDoor, on
     try {
       const result = await fetchAllProducts()
       
+      console.log('📊 fetchAllProducts result:', result)
+      
       if (result.error) {
+        console.error('❌ Error from fetch:', result.error)
         setError(result.error)
         setAllProducts([])
       } else if (result.empty) {
+        console.warn('⚠️ Database is empty')
         setIsEmpty(true)
         setAllProducts([])
       } else {
+        console.log(`✅ Loaded ${result.data.length} products:`, result.data)
         setAllProducts(result.data || [])
-        console.log(`✅ Loaded ${result.data.length} products`)
       }
     } catch (err) {
-      console.error('Error loading products:', err)
+      console.error('💥 Error loading products:', err)
       setError({ message: err.message })
       setAllProducts([])
     } finally {
@@ -44,7 +48,7 @@ const CatalogBottomSheet = ({ selectedDoorId, selectedHandleId, onSelectDoor, on
   const selectedId = activeTab === 'doors' ? selectedDoorId : selectedHandleId
   const onSelect = activeTab === 'doors' ? onSelectDoor : onSelectHandle
 
-  console.log(`📊 Active tab: ${activeTab}, Filtered products: ${products.length}/${allProducts.length}`)
+  console.log(`📊 Active tab: "${activeTab}", Total products: ${allProducts.length}, Filtered: ${products.length}`)
 
   return (
     <div className="bg-white border-t border-gray-200 shadow-xl rounded-t-3xl max-h-96 overflow-hidden flex flex-col">

@@ -68,9 +68,13 @@ export const filterProductsByCategory = (products, category) => {
   if (!products || products.length === 0) return []
   
   return products.filter(product => {
-    // If category is NULL, empty, or missing -> default to "doors"
-    const productCategory = product.category || 'doors'
-    return productCategory === category
+    // BULLETPROOF: If category is NULL, undefined, empty string -> default to "doors"
+    const productCategory = (product.category && product.category.trim()) || 'doors'
+    const targetCategory = (category && category.trim()) || 'doors'
+    
+    console.log(`🔍 Product "${product.title}" category: "${productCategory}" vs target: "${targetCategory}"`, productCategory === targetCategory)
+    
+    return productCategory === targetCategory
   })
 }
 
