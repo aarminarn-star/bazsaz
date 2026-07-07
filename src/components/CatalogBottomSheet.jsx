@@ -6,6 +6,10 @@ const CatalogBottomSheet = ({ selectedDoorId, selectedHandleId, onSelectDoor, on
   const [doors, setDoors] = useState([])
   const [handles, setHandles] = useState([])
   const [loading, setLoading] = useState(false)
+  const [doorsError, setDoorsError] = useState(null)
+  const [handlesError, setHandlesError] = useState(null)
+  const [doorsEmpty, setDoorsEmpty] = useState(false)
+  const [handlesEmpty, setHandlesEmpty] = useState(false)
 
   useEffect(() => {
     loadProducts()
@@ -14,14 +18,24 @@ const CatalogBottomSheet = ({ selectedDoorId, selectedHandleId, onSelectDoor, on
   const loadProducts = async () => {
     setLoading(true)
     try {
-      const [doorsData, handlesData] = await Promise.all([
+      const [doorsResult, handlesResult] = await Promise.all([
         fetchProducts('doors'),
         fetchProducts('handles'),
       ])
-      setDoors(doorsData)
-      setHandles(handlesData)
+      
+      // Handle doors result
+      setDoors(doorsResult.data || [])
+      setDoorsError(doorsResult.error)
+      setDoorsEmpty(doorsResult.empty)
+      
+      // Handle handles result
+      setHandles(handlesResult.data || [])
+      setHandlesError(handlesResult.error)
+      setHandlesEmpty(handlesResult.empty)
     } catch (err) {
       console.error('Error loading products:', err)
+      setDoorsError({ message: err.message })
+      setHandlesError({ message: err.message })
     } finally {
       setLoading(false)
     }
@@ -30,6 +44,8 @@ const CatalogBottomSheet = ({ selectedDoorId, selectedHandleId, onSelectDoor, on
   const products = activeTab === 'doors' ? doors : handles
   const selectedId = activeTab === 'doors' ? selectedDoorId : selectedHandleId
   const onSelect = activeTab === 'doors' ? onSelectDoor : onSelectHandle
+  const error = activeTab === 'doors' ? doorsError : handlesError
+  const isEmpty = activeTab === 'doors' ? doorsEmpty : handlesEmpty
 
   return (
     <div className="bg-white border-t border-gray-200 shadow-xl rounded-t-3xl max-h-96 overflow-hidden flex flex-col">
@@ -65,6 +81,52 @@ const CatalogBottomSheet = ({ selectedDoorId, selectedHandleId, onSelectDoor, on
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
               <p className="text-gray-600">در حال بارگذاری...</p>
             </div>
+          </div>
+        ) : error ? (
+          // 🔴 DIAGNOSTIC: SHOW ERROR MESSAGE
+          <div className="bg-red-50 border-2 border-red-400 rounded-lg p-4">
+            <p className="text-red-600 font-bold mb-2">❌ خطا در ارتباط با دیتابیس:</p>
+            <p className="text-red-700 text-sm font-mono break-words">
+              {error.message}
+            </p>
+            {error.code && (
+              <p className="text-red-600 text-xs mt-2">
+                <strong>کد خطا:</strong> {error.code}
+              </p>
+            )}
+            {error.status && (
+              <p className="text-red-600 text-xs mt-1">
+                <strong>وضعیت:</strong> {error.status}
+              </p>
+            )}
+            {error.details && (
+              <p className="text-red-600 text-xs mt-2 font-mono">
+                <strong>جزئیات:</strong> {JSON.stringify(error.details)}
+              </p>
+            )}
+            <button
+              onClick={loadProducts}
+              className="mt-4 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+            >
+              تلاش دوباره
+            </button>
+          </div>
+        ) : isEmpty ? (
+          // 🟡 DIAGNOSTIC: SHOW EMPTY DATABASE WARNING
+          <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
+            <p className="text-yellow-700 font-bold mb-2">⚠️ دیتابیس خالی است</p>
+            <p className="text-yellow-700 text-sm">
+              ارتباط برقرار شد اما دیتابیس خالی است - احتمالاً به خاطر تنظیمات RLS در سوپابیس
+            </p>
+            <p className="text-yellow-600 text-xs mt-2">
+              <strong>تب فعلی:</strong> {activeTab === 'doors' ? 'درب‌ها' : 'دستگیره‌ها'}
+            </p>
+            <button
+              onClick={loadProducts}
+              className="mt-4 px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition"
+            >
+              تلاش دوباره
+            </button>
           </div>
         ) : products.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
