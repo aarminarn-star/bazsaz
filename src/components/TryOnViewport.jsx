@@ -27,7 +27,7 @@ const TryOnViewport = ({ backgroundPhoto, selectedDoorId, onShowResult, onEditPh
   }
 
   return (
-    <div className="flex-1 relative bg-black overflow-hidden flex flex-col">
+    <div className="flex-1 relative bg-black overflow-hidden">
       {/* Background Photo */}
       {backgroundPhoto && (
         <img
@@ -37,7 +37,7 @@ const TryOnViewport = ({ backgroundPhoto, selectedDoorId, onShowResult, onEditPh
         />
       )}
 
-      {/* Door Overlay */}
+      {/* Door Overlay - Clean Static Container */}
       {doorImage && !loading && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <img

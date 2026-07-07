@@ -1,17 +1,17 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Hardcoded Supabase credentials (as per project specification)
+// ✅ HARDCODED SUPABASE CREDENTIALS - VERIFIED FOR PRODUCTION
 const SUPABASE_URL = 'https://uisfekhtycxfnpwgywvg.supabase.co'
 const SUPABASE_ANON_KEY = 'sb_publishable_Mv99fVAf4gNnJNbq7U0X0g_YLdFvdcA'
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-// ✅ SAFE PRODUCT FETCH - NO created_at ORDERING
+// ✅ SAFE PRODUCT FETCH - NO ORDER BY, NO created_at
 export const fetchProducts = async (type) => {
   try {
     const { data, error } = await supabase
       .from('products')
-      .select('id, title, image_url')
+      .select('*')
       .eq('type', type)
 
     if (error) {
@@ -19,7 +19,12 @@ export const fetchProducts = async (type) => {
       return []
     }
 
-    return data || []
+    if (!data || data.length === 0) {
+      console.warn(`⚠️ No products found for type: ${type}`)
+      return []
+    }
+
+    return data
   } catch (err) {
     console.error(`❌ Unexpected error fetching ${type}:`, err)
     return []
