@@ -6,20 +6,20 @@ const SUPABASE_ANON_KEY = 'sb_publishable_Mv99fVAf4gNnJNbq7U0X0g_YLdFvdcA'
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-// ✅ SAFE PRODUCT FETCH - CLEAN QUERY WITH DIAGNOSTICS
-export const fetchProducts = async (type) => {
+// ✅ FETCH ALL PRODUCTS - THEN FILTER IN APP LOGIC
+// No category filter in query - handle NULL/missing categories in JavaScript
+export const fetchAllProducts = async () => {
   try {
-    console.log(`📥 Fetching products for type: ${type}`)
+    console.log('📦 Fetching all products (no category filter)')
     
-    // CLEAN QUERY - NO ORDER BY, NO created_at
+    // CLEAN QUERY - NO FILTERS, NO ORDER BY
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .eq('type', type)
 
     // IF ERROR - RETURN ERROR OBJECT WITH MESSAGE
     if (error) {
-      console.error(`❌ Supabase error for ${type}:`, error)
+      console.error('❌ Supabase error:', error)
       return {
         data: [],
         error: {
@@ -35,7 +35,7 @@ export const fetchProducts = async (type) => {
 
     // IF DATA IS EMPTY - RETURN EMPTY FLAG
     if (!data || data.length === 0) {
-      console.warn(`⚠️ No products found for type: ${type}`)
+      console.warn('⚠️ No products found in database')
       return {
         data: [],
         error: null,
@@ -43,14 +43,14 @@ export const fetchProducts = async (type) => {
       }
     }
 
-    console.log(`✅ Found ${data.length} products for type: ${type}`)
+    console.log(`✅ Found ${data.length} total products`)
     return {
       data,
       error: null,
       empty: false,
     }
   } catch (err) {
-    console.error(`💥 Unexpected error fetching ${type}:`, err)
+    console.error('💥 Unexpected error fetching products:', err)
     return {
       data: [],
       error: {
@@ -60,6 +60,18 @@ export const fetchProducts = async (type) => {
       empty: false,
     }
   }
+}
+
+// ✅ FILTER PRODUCTS BY CATEGORY IN JAVASCRIPT
+// NULL/empty categories default to "doors"
+export const filterProductsByCategory = (products, category) => {
+  if (!products || products.length === 0) return []
+  
+  return products.filter(product => {
+    // If category is NULL, empty, or missing -> default to "doors"
+    const productCategory = product.category || 'doors'
+    return productCategory === category
+  })
 }
 
 // Insert lead into database

@@ -1,15 +1,12 @@
 import { useState, useEffect } from 'react'
-import { fetchProducts } from '../lib/supabase'
+import { fetchAllProducts, filterProductsByCategory } from '../lib/supabase'
 
 const CatalogBottomSheet = ({ selectedDoorId, selectedHandleId, onSelectDoor, onSelectHandle, onProceed }) => {
   const [activeTab, setActiveTab] = useState('doors')
-  const [doors, setDoors] = useState([])
-  const [handles, setHandles] = useState([])
+  const [allProducts, setAllProducts] = useState([])
   const [loading, setLoading] = useState(false)
-  const [doorsError, setDoorsError] = useState(null)
-  const [handlesError, setHandlesError] = useState(null)
-  const [doorsEmpty, setDoorsEmpty] = useState(false)
-  const [handlesEmpty, setHandlesEmpty] = useState(false)
+  const [error, setError] = useState(null)
+  const [isEmpty, setIsEmpty] = useState(false)
 
   useEffect(() => {
     loadProducts()
@@ -17,35 +14,37 @@ const CatalogBottomSheet = ({ selectedDoorId, selectedHandleId, onSelectDoor, on
 
   const loadProducts = async () => {
     setLoading(true)
+    setError(null)
+    setIsEmpty(false)
+    
     try {
-      const [doorsResult, handlesResult] = await Promise.all([
-        fetchProducts('doors'),
-        fetchProducts('handles'),
-      ])
+      const result = await fetchAllProducts()
       
-      // Handle doors result
-      setDoors(doorsResult.data || [])
-      setDoorsError(doorsResult.error)
-      setDoorsEmpty(doorsResult.empty)
-      
-      // Handle handles result
-      setHandles(handlesResult.data || [])
-      setHandlesError(handlesResult.error)
-      setHandlesEmpty(handlesResult.empty)
+      if (result.error) {
+        setError(result.error)
+        setAllProducts([])
+      } else if (result.empty) {
+        setIsEmpty(true)
+        setAllProducts([])
+      } else {
+        setAllProducts(result.data || [])
+        console.log(`✅ Loaded ${result.data.length} products`)
+      }
     } catch (err) {
       console.error('Error loading products:', err)
-      setDoorsError({ message: err.message })
-      setHandlesError({ message: err.message })
+      setError({ message: err.message })
+      setAllProducts([])
     } finally {
       setLoading(false)
     }
   }
 
-  const products = activeTab === 'doors' ? doors : handles
+  // Filter products by active tab category
+  const products = filterProductsByCategory(allProducts, activeTab)
   const selectedId = activeTab === 'doors' ? selectedDoorId : selectedHandleId
   const onSelect = activeTab === 'doors' ? onSelectDoor : onSelectHandle
-  const error = activeTab === 'doors' ? doorsError : handlesError
-  const isEmpty = activeTab === 'doors' ? doorsEmpty : handlesEmpty
+
+  console.log(`📊 Active tab: ${activeTab}, Filtered products: ${products.length}/${allProducts.length}`)
 
   return (
     <div className="bg-white border-t border-gray-200 shadow-xl rounded-t-3xl max-h-96 overflow-hidden flex flex-col">
@@ -59,7 +58,7 @@ const CatalogBottomSheet = ({ selectedDoorId, selectedHandleId, onSelectDoor, on
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          🚪 درب‌ها
+          🚪 درب‌ها {activeTab === 'doors' && products.length > 0 && `(${products.length})`}
         </button>
         <button
           onClick={() => setActiveTab('handles')}
@@ -69,7 +68,7 @@ const CatalogBottomSheet = ({ selectedDoorId, selectedHandleId, onSelectDoor, on
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          🔐 دستگیره‌ها
+          🔐 دستگیره‌ها {activeTab === 'handles' && products.length > 0 && `(${products.length})`}
         </button>
       </div>
 
@@ -116,10 +115,7 @@ const CatalogBottomSheet = ({ selectedDoorId, selectedHandleId, onSelectDoor, on
           <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
             <p className="text-yellow-700 font-bold mb-2">⚠️ دیتابیس خالی است</p>
             <p className="text-yellow-700 text-sm">
-              ارتباط برقرار شد اما دیتابیس خالی است - احتمالاً به خاطر تنظیمات RLS در سوپابیس
-            </p>
-            <p className="text-yellow-600 text-xs mt-2">
-              <strong>تب فعلی:</strong> {activeTab === 'doors' ? 'درب‌ها' : 'دستگیره‌ها'}
+              اتصال برقرار شد اما دیتابیس خالی است - احتمالاً به خاطر تنظیمات RLS در سوپابیس
             </p>
             <button
               onClick={loadProducts}
@@ -128,27 +124,49 @@ const CatalogBottomSheet = ({ selectedDoorId, selectedHandleId, onSelectDoor, on
               تلاش دوباره
             </button>
           </div>
+        ) : allProducts.length > 0 && products.length === 0 ? (
+          // 🟠 NO PRODUCTS IN THIS CATEGORY (but others exist)
+          <div className="bg-orange-50 border-2 border-orange-400 rounded-lg p-4">
+            <p className="text-orange-700 font-bold mb-2">ℹ️ محصولی در این دسته یافت نشد</p>
+            <p className="text-orange-700 text-sm">
+              در کل {allProducts.length} محصول وجود دارد، اما برای این دسته محصولی موجود نیست.
+            </p>
+            <p className="text-orange-600 text-xs mt-2">
+              فعلاً همه محصولات در تب "درب‌ها" قرار می‌گیرند.
+            </p>
+          </div>
         ) : products.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             <p>محصولی یافت نشد</p>
           </div>
         ) : (
+          // ✅ SUCCESS: RENDER PRODUCTS GRID
           <div className="grid grid-cols-3 gap-4">
             {products.map((product) => (
               <button
                 key={product.id}
                 onClick={() => onSelect(product.id)}
-                className={`aspect-square rounded-lg overflow-hidden border-3 transition-all ${
+                className={`aspect-square rounded-lg overflow-hidden border-3 transition-all shadow-md hover:shadow-lg ${
                   selectedId === product.id
                     ? 'border-blue-500 shadow-lg'
-                    : 'border-gray-200 hover:border-gray-300'
+                    : 'border-gray-200 hover:border-blue-300'
                 }`}
+                title={product.title || 'محصول'}
               >
-                <img
-                  src={product.image_url}
-                  alt={product.title}
-                  className="w-full h-full object-cover"
-                />
+                {product.image_url ? (
+                  <img
+                    src={product.image_url}
+                    alt={product.title || 'محصول'}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Crect fill="%23ccc" width="100" height="100"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" fill="%23999" font-size="12"%3ENo Image%3C/text%3E%3C/svg%3E'
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">
+                    <span>🖼️</span>
+                  </div>
+                )}
               </button>
             ))}
           </div>
